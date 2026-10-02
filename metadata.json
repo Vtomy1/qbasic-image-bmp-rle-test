@@ -1,0 +1,6 @@
+{
+  "name": "QBasic BMP Studio - 4-Bit & 8-Bit RLE Converter & Code Generator",
+  "description": "Convert modern images to QBasic and QuickBASIC compatible 4-bit and 8-bit BMP files with RLE compression, dithering, and complete BAS loader/saver code samples.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
