@@ -24,6 +24,11 @@ import {
   generateBatchQBasicLoaderCode,
 } from '../lib/qbasicGenerators';
 import { createSampleImage, SAMPLE_PRESETS } from '../lib/sampleImages';
+import {
+  exportPaletteToGpl,
+  exportPaletteToJascPal,
+  getPalettePresetLabel,
+} from '../lib/paletteExport';
 
 interface BatchProcessorProps {
   settings: EditorSettings;
@@ -44,6 +49,7 @@ export const BatchProcessor: React.FC<BatchProcessorProps> = ({
   });
   const [basFilename, setBasFilename] = useState('LOADER.BAS');
   const [zipFilename, setZipFilename] = useState('QBASIC_BATCH.ZIP');
+  const [includePalettesInZip, setIncludePalettesInZip] = useState(true);
   const [showScriptPreview, setShowScriptPreview] = useState(false);
   const [copiedScript, setCopiedScript] = useState(false);
   const [lastConvertedSettingsSig, setLastConvertedSettingsSig] = useState<string>('');
@@ -319,6 +325,22 @@ export const BatchProcessor: React.FC<BatchProcessorProps> = ({
 
       const basContent = generateBatchQBasicLoaderCode(finalManifest);
       zip.file(normalizedBasName, basContent);
+
+      if (includePalettesInZip && completedItems.length > 0) {
+        const paletteLabel = getPalettePresetLabel(settings.palettePreset);
+        if (settings.palettePreset.startsWith('custom')) {
+          completedItems.forEach((item, idx) => {
+            const dosBase = finalManifest[idx].dosFilename.replace(/\.BMP$/i, '');
+            const pal = item.result!.palette;
+            zip.file(`${dosBase}.PAL`, exportPaletteToJascPal(pal));
+            zip.file(`${dosBase}.GPL`, exportPaletteToGpl(pal, `${paletteLabel} (${dosBase})`));
+          });
+        } else {
+          const sharedPal = completedItems[0].result!.palette;
+          zip.file('PALETTE.PAL', exportPaletteToJascPal(sharedPal));
+          zip.file('PALETTE.GPL', exportPaletteToGpl(sharedPal, paletteLabel));
+        }
+      }
 
       // Build plain-text README manifest
       const readmeLines = [
@@ -664,6 +686,18 @@ export const BatchProcessor: React.FC<BatchProcessorProps> = ({
                 className="w-44 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-mono text-white focus:outline-none focus:border-amber-500"
               />
             </div>
+
+            <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer select-none pt-4">
+              <input
+                type="checkbox"
+                checked={includePalettesInZip}
+                onChange={(e) => setIncludePalettesInZip(e.target.checked)}
+                className="accent-amber-500 w-3.5 h-3.5 rounded cursor-pointer"
+              />
+              <span className="font-mono text-[11px] text-slate-300">
+                Include .PAL &amp; .GPL palettes
+              </span>
+            </label>
 
             {completedItems.length > 0 && (
               <div className="text-xs font-mono text-slate-400 tabular-nums pt-4">

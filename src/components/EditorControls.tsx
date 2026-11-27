@@ -1,27 +1,32 @@
 import React from 'react';
 import {
   BitDepth,
-  CompressionType,
-  DitherMethod,
   EditorSettings,
   PalettePreset,
+  RGBColor,
   ScreenModePreset,
 } from '../types';
 import {
   Monitor,
   Sliders,
   Palette,
-  Minimize2,
   Tv,
-  Grid,
-  ZoomIn,
+  Download,
 } from 'lucide-react';
+import { getPaletteByPreset } from '../lib/palettes';
+import {
+  downloadPaletteFile,
+  getPalettePresetLabel,
+  PaletteExportFormat,
+} from '../lib/paletteExport';
 
 interface EditorControlsProps {
   settings: EditorSettings;
   onChange: (newSettings: Partial<EditorSettings>) => void;
   originalWidth: number;
   originalHeight: number;
+  activePalette?: RGBColor[];
+  imageName?: string;
 }
 
 export const EditorControls: React.FC<EditorControlsProps> = ({
@@ -29,6 +34,8 @@ export const EditorControls: React.FC<EditorControlsProps> = ({
   onChange,
   originalWidth,
   originalHeight,
+  activePalette,
+  imageName = 'palette',
 }) => {
   const handlePresetChange = (preset: ScreenModePreset) => {
     switch (preset) {
@@ -397,6 +404,45 @@ export const EditorControls: React.FC<EditorControlsProps> = ({
             Custom palette generates QBasic <code className="font-mono text-white">OUT &amp;H3C8/&amp;H3C9</code> VGA DAC code to reprogram hardware registers.
           </p>
         )}
+
+        {/* Export Active Palette */}
+        <div className="pt-1 space-y-1.5">
+          <span className="text-[11px] text-slate-400 block">
+            Export Current Palette
+          </span>
+          <div className="grid grid-cols-3 gap-1.5">
+            {(
+              [
+                { format: 'jasc-pal', label: 'JASC .PAL' },
+                { format: 'riff-pal', label: 'RIFF .PAL' },
+                { format: 'gpl', label: 'GIMP .GPL' },
+              ] as { format: PaletteExportFormat; label: string }[]
+            ).map((btn) => (
+              <button
+                key={btn.format}
+                onClick={() => {
+                  const paletteToExport =
+                    activePalette && activePalette.length > 0
+                      ? activePalette
+                      : getPaletteByPreset(settings.palettePreset);
+                  const baseName = settings.palettePreset.startsWith('custom')
+                    ? imageName
+                    : settings.palettePreset;
+                  downloadPaletteFile(
+                    paletteToExport,
+                    btn.format,
+                    baseName,
+                    getPalettePresetLabel(settings.palettePreset)
+                  );
+                }}
+                className="flex items-center justify-center gap-1 px-2 py-1.5 text-[11px] font-mono rounded bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-amber-300 border border-slate-700 transition-colors whitespace-nowrap"
+              >
+                <Download className="w-3 h-3 text-amber-400 shrink-0" />
+                {btn.label}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       <hr className="border-slate-800" />

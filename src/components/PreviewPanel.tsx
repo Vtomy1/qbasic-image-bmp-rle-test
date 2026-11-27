@@ -1,20 +1,22 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { ConversionResult, EditorSettings, RGBColor } from '../types';
 import {
-  ZoomIn,
-  ZoomOut,
-  Maximize2,
-  Tv,
   Layers,
   ArrowRightLeft,
-  Info,
+  Download,
 } from 'lucide-react';
+import {
+  downloadPaletteFile,
+  getPalettePresetLabel,
+  PaletteExportFormat,
+} from '../lib/paletteExport';
 
 interface PreviewPanelProps {
   originalDataUrl: string;
   result: ConversionResult | null;
   settings: EditorSettings;
   onZoomChange: (zoom: number) => void;
+  imageName?: string;
 }
 
 export const PreviewPanel: React.FC<PreviewPanelProps> = ({
@@ -22,6 +24,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
   result,
   settings,
   onZoomChange,
+  imageName = 'palette',
 }) => {
   const [viewMode, setViewMode] = useState<'split' | 'retro' | 'side-by-side'>('split');
   const [splitPos, setSplitPos] = useState(50); // percentage 0-100
@@ -326,26 +329,60 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
       </div>
 
       {/* Interactive Color Palette Swatch Bar */}
-      <div className="p-3 bg-slate-900/80 border border-slate-800 rounded-xl space-y-2">
-        <div className="flex items-center justify-between text-xs">
-          <div className="flex items-center gap-2">
+      <div className="p-3 bg-slate-900/80 border border-slate-800 rounded-xl space-y-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="font-semibold text-slate-200">
               Palette Swatches ({result.palette.length} Colors)
             </span>
-            <span className="text-[11px] text-slate-400 font-mono">
-              Hover for VGA DAC registers (&amp;H3C8/&amp;H3C9)
-            </span>
-          </div>
-          {hoveredColor && (
-            <div className="flex items-center gap-2.5 font-mono text-xs text-amber-300">
-              <span>Color #{hoveredColor.index}</span>
-              <span>{hoveredColor.color.hex}</span>
-              <span>RGB({hoveredColor.color.r}, {hoveredColor.color.g}, {hoveredColor.color.b})</span>
-              <span className="text-white font-bold bg-amber-500/20 px-1.5 py-0.5 rounded border border-amber-500/30">
-                VGA DAC: {hoveredColor.color.vgaR}, {hoveredColor.color.vgaG}, {hoveredColor.color.vgaB}
+            {hoveredColor ? (
+              <div className="flex items-center gap-2 font-mono text-xs text-amber-300">
+                <span>#{hoveredColor.index}</span>
+                <span>{hoveredColor.color.hex}</span>
+                <span className="text-slate-400">
+                  RGB({hoveredColor.color.r}, {hoveredColor.color.g}, {hoveredColor.color.b})
+                </span>
+                <span className="text-white font-semibold bg-amber-500/20 px-1.5 py-0.5 rounded border border-amber-500/30">
+                  DAC: {hoveredColor.color.vgaR}, {hoveredColor.color.vgaG}, {hoveredColor.color.vgaB}
+                </span>
+              </div>
+            ) : (
+              <span className="text-[11px] text-slate-400 font-mono">
+                Hover swatch for VGA DAC (&amp;H3C8/&amp;H3C9)
               </span>
-            </div>
-          )}
+            )}
+          </div>
+
+          {/* Palette Export Actions */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            {(
+              [
+                { format: 'jasc-pal', label: '.PAL (JASC)', title: 'Export as JASC-PAL (.pal) for Aseprite, Paint Shop Pro, GraphicsGale' },
+                { format: 'riff-pal', label: '.PAL (RIFF)', title: 'Export as Microsoft RIFF (.pal) binary palette' },
+                { format: 'gpl', label: '.GPL (GIMP)', title: 'Export as GIMP Palette (.gpl) for GIMP, GrafX2, Krita, Aseprite' },
+              ] as { format: PaletteExportFormat; label: string; title: string }[]
+            ).map((btn) => (
+              <button
+                key={btn.format}
+                onClick={() => {
+                  const baseName = settings.palettePreset.startsWith('custom')
+                    ? imageName
+                    : settings.palettePreset;
+                  downloadPaletteFile(
+                    result.palette,
+                    btn.format,
+                    baseName,
+                    getPalettePresetLabel(settings.palettePreset)
+                  );
+                }}
+                title={btn.title}
+                className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-mono font-medium rounded bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-amber-300 border border-slate-700 transition-colors whitespace-nowrap"
+              >
+                <Download className="w-3 h-3 text-amber-400" />
+                {btn.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Swatch grid */}

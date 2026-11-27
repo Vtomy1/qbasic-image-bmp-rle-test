@@ -197,6 +197,8 @@ export default function App() {
               onChange={handleUpdateSettings}
               originalWidth={originalWidth}
               originalHeight={originalHeight}
+              activePalette={result?.palette}
+              imageName={currentImageName}
             />
           </div>
         </aside>
@@ -210,6 +212,7 @@ export default function App() {
                 result={result}
                 settings={settings}
                 onZoomChange={(z) => handleUpdateSettings({ zoom: z })}
+                imageName={currentImageName}
               />
             )}
 
