@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
+  ActiveTab,
   ConversionResult,
   EditorSettings,
 } from './types';
@@ -10,14 +11,13 @@ import { PreviewPanel } from './components/PreviewPanel';
 import { BinaryInspector } from './components/BinaryInspector';
 import { CodeSamplesPanel } from './components/CodeSamplesPanel';
 import { DosEmulator } from './components/DosEmulator';
+import { BatchProcessor } from './components/BatchProcessor';
 import { createSampleImage } from './lib/sampleImages';
-import { getPaletteByPreset } from './lib/palettes';
-import { ditherImage } from './lib/dithering';
-import { encodeBmp } from './lib/bmpEncoder';
+import { convertImageToBmp } from './lib/converter';
 import { generateQBasicLoaderCode } from './lib/qbasicGenerators';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'editor' | 'code' | 'inspector' | 'emulator'>('editor');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('editor');
   const [originalDataUrl, setOriginalDataUrl] = useState<string>('');
   const [currentImageName, setCurrentImageName] = useState<string>('cyber_starfighter.png');
   const [originalWidth, setOriginalWidth] = useState<number>(160);
@@ -56,90 +56,21 @@ export default function App() {
   }, []);
 
   // Process conversion pipeline
-  const processConversion = useCallback(() => {
+  const processConversion = useCallback(async () => {
     if (!originalDataUrl) return;
 
     setIsProcessing(true);
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      try {
-        const offCanvas = document.createElement('canvas');
-        offCanvas.width = settings.width;
-        offCanvas.height = settings.height;
-        const ctx = offCanvas.getContext('2d', { willReadFrequently: true });
-        if (!ctx) return;
-
-        // Draw scaled image (crisp pixelated for retro sprites)
-        ctx.imageSmoothingEnabled = false;
-        ctx.drawImage(img, 0, 0, settings.width, settings.height);
-
-        const rawImageData = ctx.getImageData(0, 0, settings.width, settings.height);
-
-        // 1. Get Target Palette
-        const palette = getPaletteByPreset(settings.palettePreset, rawImageData);
-
-        // 2. Dither and Quantize
-        const { indexedPixels, outputImageData } = ditherImage(rawImageData, {
-          width: settings.width,
-          height: settings.height,
-          method: settings.ditherMethod,
-          strength: settings.ditherStrength,
-          palette,
-          brightness: settings.brightness,
-          contrast: settings.contrast,
-          saturation: settings.saturation,
-        });
-
-        // 3. Encode BMP File (Headers, Palette, Scanlines/RLE)
-        const bmpResult = encodeBmp({
-          width: settings.width,
-          height: settings.height,
-          bitDepth: settings.bitDepth,
-          compression: settings.compression,
-          palette,
-          indexedPixels,
-        });
-
-        // 4. Create Preview Canvas Data URL
-        const outCanvas = document.createElement('canvas');
-        outCanvas.width = settings.width;
-        outCanvas.height = settings.height;
-        const outCtx = outCanvas.getContext('2d');
-        if (outCtx) {
-          outCtx.putImageData(outputImageData, 0, 0);
-        }
-        const processedDataUrl = outCanvas.toDataURL('image/png');
-
-        // 5. Create Blob and Object URL for download
-        const bmpBlob = new Blob([bmpResult.buffer as unknown as BlobPart], { type: 'image/bmp' });
-        const bmpUrl = URL.createObjectURL(bmpBlob);
-
-        setResult({
-          width: settings.width,
-          height: settings.height,
-          bitDepth: settings.bitDepth,
-          compression: settings.compression,
-          palette,
-          indexedPixels,
-          bmpBuffer: bmpResult.buffer,
-          bmpBlob,
-          bmpUrl,
-          fileHeader: bmpResult.fileHeader,
-          infoHeader: bmpResult.infoHeader,
-          rawSize: bmpResult.rawSize,
-          bmpSize: bmpResult.bmpSize,
-          compressionRatio: bmpResult.compressionRatio,
-          rlePackets: bmpResult.rlePackets,
-          processedDataUrl,
-        });
-      } catch (err) {
-        console.error('Conversion failed:', err);
-      } finally {
-        setIsProcessing(false);
-      }
-    };
-    img.src = originalDataUrl;
+    try {
+      const { result: converted } = await convertImageToBmp(originalDataUrl, settings);
+      setResult((prev) => {
+        if (prev?.bmpUrl) URL.revokeObjectURL(prev.bmpUrl);
+        return converted;
+      });
+    } catch (err) {
+      console.error('Conversion failed:', err);
+    } finally {
+      setIsProcessing(false);
+    }
   }, [originalDataUrl, settings]);
 
   // Debounced trigger for smooth UI interaction
@@ -209,13 +140,38 @@ export default function App() {
         hasImage={!!result}
       />
 
+      {/* Mobile Tab Bar */}
+      <div className="md:hidden flex items-center gap-1 px-4 py-2 bg-[#0f1118] border-b border-slate-800 overflow-x-auto">
+        {(
+          [
+            { id: 'editor', label: 'Editor' },
+            { id: 'batch', label: 'Batch ZIP' },
+            { id: 'code', label: '.BAS Code' },
+            { id: 'inspector', label: 'Inspector' },
+            { id: 'emulator', label: 'DOS' },
+          ] as const
+        ).map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`px-3 py-1.5 text-xs font-medium rounded-md whitespace-nowrap transition-colors ${
+              activeTab === tab.id
+                ? 'bg-amber-500 text-slate-950 font-semibold'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
       {/* Main Workspace Body */}
       <main className="flex-1 max-w-[1600px] w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column: Image Source & Conversion Controls */}
         <aside className="lg:col-span-4 space-y-6">
           <div className="bg-[#10131d] border border-slate-800 rounded-2xl p-5 shadow-lg space-y-6">
             <h2 className="text-sm font-bold text-white uppercase tracking-wider font-mono flex items-center justify-between">
-              <span>Source &amp; Parameters</span>
+              <span>{activeTab === 'batch' ? 'Batch Parameters' : 'Source & Parameters'}</span>
               {isProcessing && (
                 <span className="text-[11px] font-mono text-amber-400 animate-pulse">
                   Processing...
@@ -223,14 +179,18 @@ export default function App() {
               )}
             </h2>
 
-            <ImageUploader
-              onImageSelected={handleImageSelected}
-              currentImageName={currentImageName}
-              originalWidth={originalWidth}
-              originalHeight={originalHeight}
-            />
+            {activeTab !== 'batch' && (
+              <>
+                <ImageUploader
+                  onImageSelected={handleImageSelected}
+                  currentImageName={currentImageName}
+                  originalWidth={originalWidth}
+                  originalHeight={originalHeight}
+                />
 
-            <hr className="border-slate-800" />
+                <hr className="border-slate-800" />
+              </>
+            )}
 
             <EditorControls
               settings={settings}
@@ -250,6 +210,16 @@ export default function App() {
                 result={result}
                 settings={settings}
                 onZoomChange={(z) => handleUpdateSettings({ zoom: z })}
+              />
+            )}
+
+            {activeTab === 'batch' && (
+              <BatchProcessor
+                settings={settings}
+                onInspectItem={(dataUrl, name) => {
+                  handleImageSelected(dataUrl, name);
+                  setActiveTab('editor');
+                }}
               />
             )}
 

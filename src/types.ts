@@ -117,3 +117,20 @@ export interface EditorSettings {
   pixelGrid: boolean;
   zoom: number;
 }
+
+export type ActiveTab = 'editor' | 'batch' | 'code' | 'inspector' | 'emulator';
+
+export type BatchItemStatus = 'queued' | 'processing' | 'done' | 'error';
+
+export interface BatchItem {
+  id: string;
+  originalName: string;
+  dosFilename: string;
+  originalDataUrl: string;
+  originalWidth: number;
+  originalHeight: number;
+  status: BatchItemStatus;
+  error?: string;
+  result?: ConversionResult;
+}
+

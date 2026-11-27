@@ -1,9 +1,10 @@
 import React from 'react';
-import { Download, FileCode, Cpu, Layers, Terminal, Sparkles } from 'lucide-react';
+import { Download, FileCode, Cpu, Layers, Terminal, Archive } from 'lucide-react';
+import { ActiveTab } from '../types';
 
 interface HeaderProps {
-  activeTab: 'editor' | 'code' | 'inspector' | 'emulator';
-  setActiveTab: (tab: 'editor' | 'code' | 'inspector' | 'emulator') => void;
+  activeTab: ActiveTab;
+  setActiveTab: (tab: ActiveTab) => void;
   onDownloadBmp: () => void;
   onDownloadBas: () => void;
   hasImage: boolean;
@@ -20,10 +21,7 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="sticky top-0 z-40 flex items-center justify-between px-6 py-3.5 bg-[#0f1118]/95 backdrop-blur border-b border-slate-800">
       {/* Zone 1: Single text element wordmark */}
       <div className="flex items-center gap-3">
-        <div className="flex items-center justify-center w-8 h-8 rounded bg-gradient-to-br from-amber-500 to-amber-700 text-slate-950 font-mono font-bold text-sm shadow-sm">
-          QB
-        </div>
-        <span className="text-base font-bold tracking-tight text-white font-mono">
+        <span className="text-base font-bold tracking-tight text-white font-mono whitespace-nowrap">
           QBasic BMP Studio
         </span>
       </div>
@@ -39,7 +37,19 @@ export const Header: React.FC<HeaderProps> = ({
           }`}
         >
           <Layers className="w-3.5 h-3.5" />
-          Converter & Editor
+          Converter &amp; Editor
+        </button>
+
+        <button
+          onClick={() => setActiveTab('batch')}
+          className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
+            activeTab === 'batch'
+              ? 'bg-amber-500 text-slate-950 font-semibold shadow-sm'
+              : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Archive className="w-3.5 h-3.5" />
+          Batch ZIP
         </button>
 
         <button
@@ -63,7 +73,7 @@ export const Header: React.FC<HeaderProps> = ({
           }`}
         >
           <Cpu className="w-3.5 h-3.5" />
-          Binary Header Inspector
+          Binary Inspector
         </button>
 
         <button
