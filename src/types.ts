@@ -104,6 +104,7 @@ export interface EditorSettings {
   width: number;
   height: number;
   bitDepth: BitDepth;
+  useRleCompression: boolean;
   compression: CompressionType;
   ditherMethod: DitherMethod;
   ditherStrength: number; // 0 to 1

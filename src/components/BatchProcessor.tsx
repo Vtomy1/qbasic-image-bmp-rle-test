@@ -63,6 +63,7 @@ export const BatchProcessor: React.FC<BatchProcessorProps> = ({
         width: settings.width,
         height: settings.height,
         bitDepth: settings.bitDepth,
+        useRleCompression: settings.useRleCompression,
         compression: settings.compression,
         ditherMethod: settings.ditherMethod,
         ditherStrength: settings.ditherStrength,

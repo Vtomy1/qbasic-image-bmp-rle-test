@@ -28,6 +28,7 @@ export default function App() {
     width: 320,
     height: 200,
     bitDepth: 8,
+    useRleCompression: false,
     compression: 'BI_RGB',
     ditherMethod: 'floyd-steinberg',
     ditherStrength: 0.8,

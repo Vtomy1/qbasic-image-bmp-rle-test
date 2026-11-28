@@ -2,7 +2,7 @@
  * Shared image conversion pipeline and DOS 8.3 filename utilities
  */
 
-import { ConversionResult, EditorSettings } from '../types';
+import { CompressionType, ConversionResult, EditorSettings } from '../types';
 import { getPaletteByPreset } from './palettes';
 import { ditherImage } from './dithering';
 import { encodeBmp } from './bmpEncoder';
@@ -132,12 +132,18 @@ export function convertImageToBmp(
           saturation: settings.saturation,
         });
 
-        // 3. Encode BMP
+        // 3. Resolve compression flag & encode BMP
+        const effectiveCompression: CompressionType = settings.useRleCompression
+          ? settings.bitDepth === 8
+            ? 'BI_RLE8'
+            : 'BI_RLE4'
+          : 'BI_RGB';
+
         const bmpResult = encodeBmp({
           width: targetWidth,
           height: targetHeight,
           bitDepth: settings.bitDepth,
-          compression: settings.compression,
+          compression: effectiveCompression,
           palette,
           indexedPixels,
         });
@@ -165,7 +171,7 @@ export function convertImageToBmp(
             width: targetWidth,
             height: targetHeight,
             bitDepth: settings.bitDepth,
-            compression: settings.compression,
+            compression: effectiveCompression,
             palette,
             indexedPixels,
             bmpBuffer: bmpResult.buffer,

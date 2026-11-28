@@ -19,6 +19,7 @@ import {
   getPalettePresetLabel,
   PaletteExportFormat,
 } from '../lib/paletteExport';
+import { PalettePreview } from './PalettePreview';
 
 interface EditorControlsProps {
   settings: EditorSettings;
@@ -37,6 +38,9 @@ export const EditorControls: React.FC<EditorControlsProps> = ({
   activePalette,
   imageName = 'palette',
 }) => {
+  const getCompressionFor = (depth: BitDepth, enableRle: boolean) =>
+    enableRle ? (depth === 8 ? 'BI_RLE8' : 'BI_RLE4') : 'BI_RGB';
+
   const handlePresetChange = (preset: ScreenModePreset) => {
     switch (preset) {
       case 'screen13':
@@ -45,7 +49,7 @@ export const EditorControls: React.FC<EditorControlsProps> = ({
           width: 320,
           height: 200,
           bitDepth: 8,
-          compression: 'BI_RGB',
+          compression: getCompressionFor(8, settings.useRleCompression),
           palettePreset: 'vga256',
         });
         break;
@@ -55,7 +59,7 @@ export const EditorControls: React.FC<EditorControlsProps> = ({
           width: 640,
           height: 480,
           bitDepth: 4,
-          compression: 'BI_RGB',
+          compression: getCompressionFor(4, settings.useRleCompression),
           palettePreset: 'qbasic16',
         });
         break;
@@ -65,7 +69,7 @@ export const EditorControls: React.FC<EditorControlsProps> = ({
           width: 320,
           height: 200,
           bitDepth: 4,
-          compression: 'BI_RGB',
+          compression: getCompressionFor(4, settings.useRleCompression),
           palettePreset: 'qbasic16',
         });
         break;
@@ -75,7 +79,7 @@ export const EditorControls: React.FC<EditorControlsProps> = ({
           width: 640,
           height: 350,
           bitDepth: 4,
-          compression: 'BI_RGB',
+          compression: getCompressionFor(4, settings.useRleCompression),
           palettePreset: 'qbasic16',
         });
         break;
@@ -111,29 +115,28 @@ export const EditorControls: React.FC<EditorControlsProps> = ({
     if (depth === 4) {
       onChange({
         bitDepth: 4,
-        compression: settings.compression === 'BI_RLE8' ? 'BI_RLE4' : settings.compression,
+        compression: getCompressionFor(4, settings.useRleCompression),
         palettePreset: settings.palettePreset === 'vga256' ? 'qbasic16' : 
                        settings.palettePreset === 'custom256' ? 'custom16' : settings.palettePreset,
       });
     } else {
       onChange({
         bitDepth: 8,
-        compression: settings.compression === 'BI_RLE4' ? 'BI_RLE8' : settings.compression,
+        compression: getCompressionFor(8, settings.useRleCompression),
         palettePreset: settings.palettePreset === 'qbasic16' ? 'vga256' : 
                        settings.palettePreset === 'custom16' ? 'custom256' : settings.palettePreset,
       });
     }
   };
 
-  const handleCompressionToggle = (isRle: boolean) => {
-    if (isRle) {
-      onChange({ compression: settings.bitDepth === 8 ? 'BI_RLE8' : 'BI_RLE4' });
-    } else {
-      onChange({ compression: 'BI_RGB' });
-    }
+  const handleCompressionToggle = (useRle: boolean) => {
+    onChange({
+      useRleCompression: useRle,
+      compression: getCompressionFor(settings.bitDepth, useRle),
+    });
   };
 
-  const isRleActive = settings.compression === 'BI_RLE4' || settings.compression === 'BI_RLE8';
+  const isRleActive = settings.useRleCompression;
 
   return (
     <div className="flex flex-col gap-5 text-sm text-slate-300">
@@ -280,34 +283,32 @@ export const EditorControls: React.FC<EditorControlsProps> = ({
           </button>
         </div>
 
-        {/* Compression Selector */}
-        <div className="flex items-center justify-between p-2.5 bg-slate-900/60 border border-slate-800 rounded-lg">
-          <div>
-            <div className="text-xs font-medium text-white flex items-center gap-2">
-              <span>RLE Run-Length Compression</span>
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                {settings.bitDepth === 8 ? 'BI_RLE8' : 'BI_RLE4'}
+        {/* RLE Compression Checkbox */}
+        <label className="flex items-start gap-3 p-2.5 bg-slate-900/60 hover:bg-slate-900/90 border border-slate-800 rounded-lg cursor-pointer select-none transition-colors">
+          <input
+            type="checkbox"
+            checked={isRleActive}
+            onChange={(e) => handleCompressionToggle(e.target.checked)}
+            className="mt-0.5 w-4 h-4 accent-amber-500 rounded border-slate-600 bg-slate-950 cursor-pointer shrink-0"
+          />
+          <div className="min-w-0 flex-1">
+            <div className="text-xs font-medium text-white flex items-center justify-between gap-2">
+              <span>Enable RLE Compression</span>
+              <span className="text-[11px] font-mono text-amber-400">
+                {isRleActive
+                  ? settings.bitDepth === 8
+                    ? 'BI_RLE8'
+                    : 'BI_RLE4'
+                  : 'BI_RGB'}
               </span>
             </div>
             <p className="text-[11px] text-slate-400 mt-0.5">
               {isRleActive
-                ? 'Compresses repeating pixel scanlines into 2-byte run opcodes'
-                : 'Raw uncompressed scanlines with 4-byte DWORD row padding'}
+                ? `Compresses repeating ${settings.bitDepth}-bit pixel runs into 2-byte RLE opcodes`
+                : 'Uncompressed scanlines with 4-byte DWORD row padding'}
             </p>
           </div>
-          <button
-            onClick={() => handleCompressionToggle(!isRleActive)}
-            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-              isRleActive ? 'bg-amber-500' : 'bg-slate-700'
-            }`}
-          >
-            <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white transition duration-200 ease-in-out ${
-                isRleActive ? 'translate-x-4' : 'translate-x-0'
-              }`}
-            />
-          </button>
-        </div>
+        </label>
       </div>
 
       <hr className="border-slate-800" />
@@ -405,6 +406,15 @@ export const EditorControls: React.FC<EditorControlsProps> = ({
           </p>
         )}
 
+        {/* Visual Color Palette Swatch Preview */}
+        <PalettePreview
+          palette={
+            activePalette && activePalette.length === (settings.bitDepth === 4 ? 16 : 256)
+              ? activePalette
+              : getPaletteByPreset(settings.palettePreset)
+          }
+        />
+
         {/* Export Active Palette */}
         <div className="pt-1 space-y-1.5">
           <span className="text-[11px] text-slate-400 block">
@@ -422,7 +432,7 @@ export const EditorControls: React.FC<EditorControlsProps> = ({
                 key={btn.format}
                 onClick={() => {
                   const paletteToExport =
-                    activePalette && activePalette.length > 0
+                    activePalette && activePalette.length === (settings.bitDepth === 4 ? 16 : 256)
                       ? activePalette
                       : getPaletteByPreset(settings.palettePreset);
                   const baseName = settings.palettePreset.startsWith('custom')
